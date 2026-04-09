@@ -1,0 +1,7 @@
+/home/stein/classes/CS2050/cs2050project/openmp/build/CMakeFiles/openmp_exec.dir
+/home/stein/classes/CS2050/cs2050project/openmp/build/CMakeFiles/edit_cache.dir
+/home/stein/classes/CS2050/cs2050project/openmp/build/CMakeFiles/rebuild_cache.dir
+/home/stein/classes/CS2050/cs2050project/openmp/build/CMakeFiles/list_install_components.dir
+/home/stein/classes/CS2050/cs2050project/openmp/build/CMakeFiles/install.dir
+/home/stein/classes/CS2050/cs2050project/openmp/build/CMakeFiles/install/local.dir
+/home/stein/classes/CS2050/cs2050project/openmp/build/CMakeFiles/install/strip.dir

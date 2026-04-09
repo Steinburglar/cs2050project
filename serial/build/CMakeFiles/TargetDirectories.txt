@@ -1,0 +1,7 @@
+/home/stein/classes/CS2050/cs2050project/serial/build/CMakeFiles/serial_exec.dir
+/home/stein/classes/CS2050/cs2050project/serial/build/CMakeFiles/edit_cache.dir
+/home/stein/classes/CS2050/cs2050project/serial/build/CMakeFiles/rebuild_cache.dir
+/home/stein/classes/CS2050/cs2050project/serial/build/CMakeFiles/list_install_components.dir
+/home/stein/classes/CS2050/cs2050project/serial/build/CMakeFiles/install.dir
+/home/stein/classes/CS2050/cs2050project/serial/build/CMakeFiles/install/local.dir
+/home/stein/classes/CS2050/cs2050project/serial/build/CMakeFiles/install/strip.dir
