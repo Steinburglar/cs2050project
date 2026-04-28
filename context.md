@@ -14,7 +14,7 @@ Assignment summary: The final project requires a serial baseline, OpenMP/MPI/CUD
 
 Chosen task: molecular-dynamics neighbor/adjacency construction
 - Core task: Given a 3D point cloud, build a sparse neighbor list (pairs with distance <= cutoff). Use a half-list representation to exploit symmetry.
-- Extension: Replace binary adjacency with a Gaussian distance kernel (store weights/distances), or explore spatial acceleration structures (cell lists, KD-trees).
+- Extension: Explore force computation for one timestep or spatial acceleration structures (cell lists, KD-trees).
 
 Why this fits: The task is computationally meaningful, easy to test at multiple scales, and supports distinct parallel strategies (thread-level work distribution, domain decomposition for MPI, GPU kernels for CUDA).
 
@@ -39,9 +39,9 @@ Notes for the agent
 Design notes — input formats and core data structures
 
 Input format
-- Primary input: an N x 4 array (or file) where each row is: `(x, y, z, species_id)`. `species_id` is an integer code for chemical species.
-- Additional frame metadata: periodic box (3 vectors or box extents), periodicity flags (bool for each dimension), optional `frame_label` string.
-- We will accept a simple CSV / whitespace text format for initial development. Later we can add parsers to read ASE `Atoms` objects via Python and pass them into C++ (see `pybind` notes below).
+- Primary input: an `extxyz` file where each atom line stores `symbol x y z` after the two-line header.
+- Additional frame metadata: periodic box in the extxyz `Lattice=` comment field, periodicity flags in `pbc=`, optional `frame_label` string.
+- We will accept a simple extxyz format for initial development. Later we can add parsers to read ASE `Atoms` objects via Python and pass them into C++ (see `pybind` notes below).
 
 `Frame` class (C++ sketch)
 - Purpose: hold coordinates, species array, box, periodicity, and simple utilities.
@@ -53,28 +53,24 @@ Input format
 	- `std::string label;`
 - Suggested methods:
 	- `size_t size() const;`
-	- `void load_from_simple_file(const std::string &path);`  // CSV/whitespace loader for debugging
-	- `std::array<double,3> minimum_image_disp(int i, int j) const;` // return displacement obeying PBC
-	- `double distance(int i, int j) const;` // using minimum-image if periodic
+	- `void load_from_extxyz(const std::string &path);`  // extxyz loader for debugging
+	- `double distance2(int i, int j) const;` // squared minimum-image distance
 
 Data outputs (semantic options)
 1) Per-atom neighbor lists: `std::vector<std::vector<int>> neighbors;` where `neighbors[i]` lists j indices.
 2) Half-neighbor lists: same as (1) but enforce `i>j` or `i<j` ordering when adding to remove redundancy.
 3) Full adjacency matrix: dense `N x N` matrix (not memory efficient for large N) — use only for small tests.
 4) Half/triangular adjacency: store only upper or lower triangle to save memory; representation depends on downstream consumers.
-5) Weighted adjacency: store edges with weights `float/double` — e.g., `std::vector<std::vector<std::pair<int,double>>>` or a CSR-style sparse matrix for efficiency.
 
 Representation choices and tradeoffs
 - Neighbor-list (`vector<vector<int>>`): simple to construct and iterate; good for binary adjacency and half-lists. Memory proportional to number of edges.
-- Weighted neighbor-list (`vector<vector<pair<int,double>>>`): natural extension for kernels that require storing weights.
-- Sparse matrix (CSR / compressed sparse row): good for numerical linear-algebra style consumers and compact storage of weighted graphs. Slightly more complex to build but much more memory-efficient than dense matrices.
 - Dense `N x N` array: simplest to reason about; only suitable for tiny N due to O(N^2) memory.
 
 Parallelization and algorithm strategy (serial → optimized)
 - Baseline: brute-force O(N^2) pairwise test with minimum-image distance and cutoff. Implement first for correctness and easy testing.
 - Acceleration (next): cell lists / uniform grid (linear in N + neighborhood), Verlet lists for dynamic simulations, or spatial trees (k-d tree) for different use cases.
 - Shared-memory parallelism (OpenMP): parallelize outer loop over atoms; be careful with building neighbor lists to avoid concurrent push_back contention (pre-allocate or use per-thread buffers and merge).
-- Distributed-memory (MPI): domain-decompose by spatial partitions; exchange halo atoms across neighbors and construct local neighbor lists. For weighted adjacency store local CSR pieces and optionally assemble a global sparse matrix if needed.
+- Distributed-memory (MPI): domain-decompose by spatial partitions; exchange halo atoms across neighbors and construct local neighbor lists.
 - CUDA: use spatial hashing / cell lists to map neighbor-search to GPU kernels; store results in pre-allocated arrays or use two-phase counting + fill to avoid dynamic allocations on GPU.
 
 Interoperability with Python / ASE (pybind outline)
@@ -88,17 +84,19 @@ API and files to add
 - `serial/src/neighbor_bruteforce.cpp`: serial O(N^2) neighbor finder with simple CLI driver.`
 - `serial/src/main.cpp`: small driver that reads a sample frame and prints neighbor counts or timings.
 - `serial/slurm/example_serial.sh`: example Slurm script showing how to build/run the serial executable.
-- `serial/tests/sample_frame.txt` or `.csv`: small test frame to validate correctness.
+- `validation/validation_frame.xyz`: small extxyz frame to validate correctness.
+- `validation/validation_expected_edges.csv`: ground-truth half neighbor list for the validation frame.
+- `benchmark/generate_benchmark_frame.py`: reproducible benchmark-frame generator.
 
 Next steps (immediate)
-1. Implement `Frame` class and `load_from_simple_file` (I can scaffold this if you want, or you implement and I review).
+1. Implement `Frame` class and `load_from_extxyz` (I can scaffold this if you want, or you implement and I review).
 2. Implement brute-force neighbor finder in `serial/src/` and a tiny `main` to exercise it.
-3. Add unit test `serial/tests/` with a tiny frame and expected neighbor list for validation.
+3. Use the root-level `validation/` input and expected output to check correctness.
 4. After serial correctness, optimize with cell lists and add OpenMP parallelization.
 
 Notes about extensibility
-- Design APIs so neighbor-search functions take a cutoff and a `weight_function` callback (for weighted adjacency). That way the same loop can compute binary or weighted results with minimal changes.
-- For outputs, provide writer utilities to emit neighbor-lists in plain text and optionally export CSR arrays for downstream tools.
+- Design APIs so neighbor-search functions stay focused on binary cutoff-based neighbor lists.
+- For outputs, provide writer utilities to emit neighbor-lists in plain text for downstream tools.
 
 Chosen output: Edge-list (Structure of Arrays)
 
@@ -108,8 +106,7 @@ Decision
 Layout details
 - `sources[]` (integer indices) — source node index for each edge.
 - `destinations[]` (integer indices) — destination node index for each edge.
-- `weights[]` (double/float) — weight associated with the edge (use `1.0` for binary neighbor lists).
-- All three arrays have the same length `M` (the number of stored edges). Entry `k` represents an edge from `sources[k]` to `destinations[k]` with weight `weights[k]`.
+- Both arrays have the same length `M` (the number of stored edges). Entry `k` represents an edge from `sources[k]` to `destinations[k]`.
 
 Conventions
 - Use 0-based indexing for atom indices (C++ native style).
@@ -124,12 +121,9 @@ Building strategy (C++ implementation notes)
 - For threaded/OpenMP builds, avoid concurrent push_back into shared vectors — prefer per-thread local buffers + concatenation, or use the two-phase counting + prefix-sum offsets so threads fill distinct ranges without contention.
 
 Interfacing from Python / numpy
-- Typical flow: start from an `N x 4` numpy array (positions + species) in Python. Extract coordinate and species arrays and pass them to C++ via `pybind11` as `pybind11::array_t<double>` and `pybind11::array_t<int>`.
-- C++ code will construct a `Frame` from the numpy data (copy or reference depending on lifetime) and then run the neighbor/edge builder to produce the three arrays. `pybind11` can return numpy arrays created from the C++ buffers without copying if desired.
+- Typical flow: start from an `xyz` file or a NumPy array in Python. Extract coordinate and species arrays and pass them to C++ via `pybind11` as `pybind11::array_t<double>` and `pybind11::array_t<int>`.
+- C++ code will construct a `Frame` from the input data and then run the neighbor/edge builder to produce the two edge arrays. `pybind11` can return numpy arrays created from the C++ buffers without copying if desired.
 
 Writers and interoperability
 - Provide simple writers to dump SoA edge-lists as CSV or binary files for downstream visualization and validation.
 - Provide optional export to CSR (row pointer, col index, values) when consumers expect sparse-matrix formats.
-
-
-
