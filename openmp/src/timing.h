@@ -1,6 +1,6 @@
 /**
  * @file timing.h
- * @brief Tiny timing helpers for phase-level measurement in the serial executable.
+ * @brief Tiny timing helpers for phase-level measurement in the OpenMP executable.
  */
 #ifndef CS2050_TIMING_H
 #define CS2050_TIMING_H

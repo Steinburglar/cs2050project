@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <array>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -23,38 +22,6 @@ static void write_edges_csv(const EdgeList &edges, const std::string &path)
     {
         out << edges.sources[k] << ',' << edges.destinations[k] << '\n';
     }
-}
-
-/** Parse a boolean command-line flag such as 0/1 or true/false. */
-static bool parse_bool_flag(const std::string &s)
-{
-    if (s == "1" || s == "true" || s == "True" || s == "T" || s == "t")
-        return true;
-    if (s == "0" || s == "false" || s == "False" || s == "F" || s == "f")
-        return false;
-    throw std::invalid_argument("invalid boolean flag: " + s);
-}
-
-/** Compare two orthogonal box descriptions using a small absolute tolerance. */
-static bool boxes_match(const std::array<std::array<double, 3>, 3> &a,
-                        const std::array<std::array<double, 3>, 3> &b,
-                        double tol = 1e-12)
-{
-    for (int i = 0; i < 3; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-        {
-            if (std::abs(a[i][j] - b[i][j]) > tol)
-                return false;
-        }
-    }
-    return true;
-}
-
-/** Compare two periodicity triplets exactly. */
-static bool periodic_match(const std::array<bool, 3> &a, const std::array<bool, 3> &b)
-{
-    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
 }
 
 /**
@@ -128,31 +95,40 @@ static void build_edges_serial(const Frame &frame, double cutoff, EdgeList &out)
 /**
  * Serial entry point.
  *
- * Loads a single-frame extxyz file, verifies the provided box metadata,
- * runs the neighbor-list build, writes the half-list to CSV, and prints a
- * short summary of the result.
+ * Loads a single-frame extxyz file, runs the neighbor-list build, writes the
+ * half-list to CSV, and prints a short summary of the result.
  */
 int main(int argc, char **argv)
 {
-    if (argc != 10 && argc != 11)
+    if (argc < 4 || argc > 6)
     {
         std::cerr << "Usage: " << argv[0]
-                  << " <input.extxyz> <output.csv> <Lx> <Ly> <Lz> <px> <py> <pz> <cutoff> [--timing]\n";
+                  << " <input.extxyz> <output.csv|-> <cutoff> [--timing] [--no-write]\n";
         return 1;
     }
 
     const std::string input_path = argv[1];
     const std::string output_path = argv[2];
-    std::array<std::array<double, 3>, 3> box{};
-    box[0][0] = std::stod(argv[3]);
-    box[1][1] = std::stod(argv[4]);
-    box[2][2] = std::stod(argv[5]);
-    const std::array<bool, 3> periodic{
-        parse_bool_flag(argv[6]),
-        parse_bool_flag(argv[7]),
-        parse_bool_flag(argv[8])};
-    const double cutoff = std::stod(argv[9]);
-    const bool print_timing = (argc == 11 && std::string(argv[10]) == "--timing");
+    const double cutoff = std::stod(argv[3]);
+    bool print_timing = false;
+    bool skip_write = (output_path == "-");
+    for (int argi = 4; argi < argc; ++argi)
+    {
+        const std::string flag = argv[argi];
+        if (flag == "--timing")
+        {
+            print_timing = true;
+        }
+        else if (flag == "--no-write")
+        {
+            skip_write = true;
+        }
+        else
+        {
+            std::cerr << "Unknown flag: " << flag << '\n';
+            return 1;
+        }
+    }
 
     TimingSummary timing;
     Frame frame;
@@ -167,23 +143,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (!boxes_match(frame.box_ref(), box))
-    {
-        std::cerr << "Input box metadata does not match the box provided on the command line.\n";
-        return 1;
-    }
-    if (!periodic_match(frame.periodicity(), periodic))
-    {
-        std::cerr << "Input periodicity metadata does not match the periodicity provided on the command line.\n";
-        return 1;
-    }
-
-    frame.set_box(box);
-    frame.set_periodic(periodic);
-
     std::cout << "Loaded frame with " << frame.size() << " atoms\n";
     std::cout << "Input: " << input_path << '\n';
-    std::cout << "Output: " << output_path << '\n';
+    std::cout << "Output: " << (skip_write ? "<disabled>" : output_path) << '\n';
+    const auto &box = frame.box_ref();
+    const auto &periodic = frame.periodicity();
     std::cout << "Box: " << box[0][0] << ' ' << box[1][1] << ' ' << box[2][2] << '\n';
     std::cout << "Periodic: " << periodic[0] << ' ' << periodic[1] << ' ' << periodic[2] << '\n';
 
@@ -195,22 +159,28 @@ int main(int argc, char **argv)
 
     std::cout << "Found " << edges.size() << " edges (cutoff=" << cutoff << ")\n";
 
-    try
+    if (!skip_write)
     {
-        ScopedTimer timer(timing.write_ms);
-        write_edges_csv(edges, output_path);
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Failed to write edge list: " << e.what() << '\n';
-        return 1;
+        try
+        {
+            ScopedTimer timer(timing.write_ms);
+            write_edges_csv(edges, output_path);
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Failed to write edge list: " << e.what() << '\n';
+            return 1;
+        }
     }
 
-    const std::size_t show = std::min(edges.size(), static_cast<std::size_t>(10));
-    std::cout << "First " << show << " edges:\n";
-    for (std::size_t k = 0; k < show; ++k)
+    if (!skip_write)
     {
-        std::cout << std::setw(4) << edges.sources[k] << " -> " << std::setw(4) << edges.destinations[k] << "\n";
+        const std::size_t show = std::min(edges.size(), static_cast<std::size_t>(10));
+        std::cout << "First " << show << " edges:\n";
+        for (std::size_t k = 0; k < show; ++k)
+        {
+            std::cout << std::setw(4) << edges.sources[k] << " -> " << std::setw(4) << edges.destinations[k] << "\n";
+        }
     }
 
     timing.total_ms = timing.load_ms + timing.build_ms + timing.write_ms;

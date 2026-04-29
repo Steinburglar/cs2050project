@@ -8,7 +8,6 @@ The serial executable:
 
 - reads a single-frame `extxyz` file
 - loads the periodic box from the `Lattice=` metadata in the comment line
-- uses the provided periodicity triplet to decide which dimensions are periodic
 - builds a binary half neighbor list using the cutoff-based minimum-image distance
 - writes the result to a two-column CSV file
 - can optionally print a lightweight timing summary for load, build, write, and total phases when run with `--timing`
@@ -27,23 +26,22 @@ cmake --build build -j
 The executable requires explicit arguments:
 
 ```bash
-./build/serial_exec <input.extxyz> <output.csv> <Lx> <Ly> <Lz> <px> <py> <pz> <cutoff> [--timing]
+./build/serial_exec <input.extxyz> <output.csv|-> <cutoff> [--timing] [--no-write]
 ```
 
 Example:
 
 ```bash
-./build/serial_exec ../validation/validation_frame.xyz ../validation/validation_actual_edges.csv 10.0 10.0 10.0 T T T 1.5
+./build/serial_exec ../validation/validation_frame.xyz ../validation/validation_actual_edges.csv 1.5
 ```
 
 Argument meaning:
 
 - `<input.extxyz>`: input frame file
-- `<output.csv>`: output neighbor list
-- `<Lx> <Ly> <Lz>`: box side lengths
-- `<px> <py> <pz>`: periodicity flags, where `T`/`1` means periodic and `F`/`0` means non-periodic
+- `<output.csv|->`: output neighbor list path, or `-` when output is disabled
 - `<cutoff>`: neighbor cutoff distance
 - `--timing`: optional flag to print the phase timing summary at the end
+- `--no-write`: skip the write phase entirely
 
 ## Validation
 
@@ -65,7 +63,7 @@ It:
 
 1. builds the serial executable in the normal `serial/build/` directory
 2. runs it on `benchmark/benchmark.xyz`
-3. writes edge output to `/dev/null`
+3. disables edge writing entirely
 4. prints the edge count and timing summary
 
 Both Slurm scripts intentionally use the same build tree so they run the exact same executable; only the runtime arguments differ.
