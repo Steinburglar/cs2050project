@@ -32,7 +32,7 @@ The executable requires explicit arguments:
 Example:
 
 ```bash
-./build/serial_exec ../validation/validation_frame.xyz ../validation/validation_actual_edges.csv 1.5
+./build/serial_exec ../validation/validation_frame.xyz ../validation/validation_actual_edges.csv 5.0
 ```
 
 Argument meaning:

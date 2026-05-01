@@ -68,7 +68,10 @@ Representation choices and tradeoffs
 
 Parallelization and algorithm strategy (serial → optimized)
 - Baseline: brute-force O(N^2) pairwise test with minimum-image distance and cutoff. Implement first for correctness and easy testing.
-- Acceleration (next): cell lists / uniform grid (linear in N + neighborhood), Verlet lists for dynamic simulations, or spatial trees (k-d tree) for different use cases.
+- Baseline comparison framing:
+	- serial, OpenMP, and CUDA stay on the same global brute-force task for now
+	- MPI uses domain decomposition and halo exchange because distributed memory changes the algorithmic structure
+- Possible later acceleration: cell lists / uniform grid (linear in N + neighborhood), Verlet lists for dynamic simulations, or spatial trees (k-d tree) for different use cases.
 - Shared-memory parallelism (OpenMP): parallelize outer loop over atoms; be careful with building neighbor lists to avoid concurrent push_back contention (pre-allocate or use per-thread buffers and merge).
 - Distributed-memory (MPI): domain-decompose by spatial partitions; exchange halo atoms across neighbors and construct local neighbor lists.
 - CUDA: use spatial hashing / cell lists to map neighbor-search to GPU kernels; store results in pre-allocated arrays or use two-phase counting + fill to avoid dynamic allocations on GPU.
@@ -96,6 +99,7 @@ Next steps (immediate)
 
 Notes about extensibility
 - Design APIs so neighbor-search functions stay focused on binary cutoff-based neighbor lists.
+- If cell lists are added later, treat them as an explicit optimization layer rather than silently changing only one backend's baseline algorithm.
 - For outputs, provide writer utilities to emit neighbor-lists in plain text for downstream tools.
 
 Chosen output: Edge-list (Structure of Arrays)

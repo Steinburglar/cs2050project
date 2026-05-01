@@ -1,0 +1,7 @@
+/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/mpi_exec.dir
+/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/edit_cache.dir
+/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/rebuild_cache.dir
+/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/list_install_components.dir
+/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/install.dir
+/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/install/local.dir
+/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/install/strip.dir

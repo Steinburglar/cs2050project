@@ -11,6 +11,12 @@ The core problem is:
 
 The project will start with a serial C++ implementation and then extend the same algorithm to OpenMP, MPI, CUDA, and one additional paradigm.
 
+For the current baseline comparison:
+
+- serial, OpenMP, and CUDA are planned as global brute-force neighbor-list builders
+- MPI uses domain decomposition and halo exchange because distributed memory requires a different computational structure
+- spatial acceleration structures such as cell lists are reserved for possible later optimization passes
+
 ## What The Neighbor List Means
 
 For atoms `i` and `j`:
@@ -148,7 +154,7 @@ The first version can be brute-force `O(N^2)` pair checking. If needed later, we
 
 - OpenMP: parallelize the outer loop, but avoid shared `push_back` contention by using per-thread buffers or a two-pass build.
 - MPI: domain decomposition plus halo exchange is the natural path.
-- CUDA: use a GPU-friendly counting and fill strategy rather than dynamic allocation inside kernels.
+- CUDA: keep the first version comparable by using the same global brute-force task, then use a GPU-friendly counting/fill strategy rather than dynamic allocation inside kernels.
 
 ## What Is Out Of Scope For The Baseline
 

@@ -1,342 +1,407 @@
 # Algorithms and Implementation Plan
 
-This document records the mid-level design for the serial and OpenMP versions of the project.
+This document records the current mid-level design for the project. The goal is
+to keep the core task fixed and comparable across implementations while still
+using natural parallelization strategies for each paradigm.
 
-The goal is to get the core algorithm and data flow right before we build anything parallel on top of it.
+## Core Task
 
-## Problem Definition
-
-- Input: an `extxyz` file containing a 3D point cloud of atoms plus periodic box metadata.
-- Parameter: a cutoff radius.
-- Output: a binary half neighbor list.
+- Input: a single-frame `extxyz` file with atom positions, box, and periodicity
+- Parameter: cutoff radius `r_c`
+- Output: a binary half neighbor list
 
 Neighbor-list semantics:
 
-- store each atom pair once
-- use `i < j` to enforce the half-list convention
-- include a pair if its minimum-image distance is less than or equal to the cutoff
-- keep the output binary, not weighted
+- store each pair once
+- use `i < j`
+- include a pair if the minimum-image distance is `<= r_c`
+- write output as a two-column CSV: `source,destination`
 
-## Serial Baseline
+## Shared Data Model
 
-The serial version is the reference implementation for correctness and timing.
+### Frame
 
-### High-Level Steps
+`Frame` stores:
 
-1. Load the `xyz` frame into memory.
-2. Attach box and periodicity metadata.
-3. Loop over each atom `i`.
-4. Loop over each later atom `j > i`.
-5. Compute the squared minimum-image distance between `i` and `j`.
-6. If `distance^2 <= cutoff^2`, append `(i, j)` to the edge list.
-7. Write the half neighbor list to a two-column CSV file.
-8. Record timing information for the build step.
+- coordinates
+- optional species
+- orthogonal box lengths
+- periodicity flags
 
-### Serial Pseudocode
+Current host-side coordinate layout is effectively **AoS**:
+
+- `std::vector<std::array<double, 3>>`
+
+That is fine for serial, OpenMP, and MPI. For CUDA, we currently plan to repack
+host coordinates into a temporary **SoA** layout before upload:
+
+- `x[]`
+- `y[]`
+- `z[]`
+
+If profiling later shows that repacking is significant, `Frame` is a natural
+place to revisit.
+
+### Edge List
+
+`EdgeList` is a structure-of-arrays container:
+
+- `sources[]`
+- `destinations[]`
+
+This makes validation and gathering straightforward.
+
+## Validation, Benchmarking, and Profiling
+
+### Validation
+
+Validation uses shared fixtures in `validation/`:
+
+- deterministic `extxyz` frame
+- ground-truth edge CSV
+
+Validation should always check exact edge-list equality after sorting or using
+deterministic output order.
+
+### Benchmarking
+
+Benchmarking uses shared fixtures in `benchmark/`:
+
+- larger fixed-seed systems
+- stable inputs for repeated timing runs
+
+### Profiling
+
+Measure at least:
+
+- load time
+- build time
+- write time
+- total time
+
+Use:
+
+- built-in `std::chrono` timers for routine measurements
+- VTune for CPU analysis
+- Nsight Systems / Nsight Compute for CUDA analysis
+
+The validation case is for correctness, not performance.
+
+## Serial Plan
+
+The serial implementation is the correctness baseline.
+
+Algorithm:
+
+1. Load the `extxyz` frame.
+2. For each atom `i`:
+   - for each atom `j > i`:
+     - compute minimum-image squared distance
+     - if `dist2 <= cutoff2`, append `(i, j)`
+3. Write the edge list if requested.
+
+Pseudocode:
 
 ```text
 load Frame
-initialize empty EdgeList
 cutoff2 = cutoff * cutoff
-
 for i in 0 .. N-1:
     for j in i+1 .. N-1:
-        dist2 = frame.distance2(i, j)
-        if dist2 <= cutoff2:
-            append i to sources
-            append j to destinations
-
-write sources,destinations to CSV
-return EdgeList
+        if distance2(i, j) <= cutoff2:
+            append (i, j)
 ```
 
-### Serial Notes
+Notes:
 
-- Use `j = i + 1` to enforce the half-list directly.
-- Compare squared distances to `cutoff^2` so we do not need a square root in the inner loop.
-- Keep edge ordering deterministic by iterating `i` in ascending order and `j` in ascending order.
-- Keep the output format simple: one CSV row per edge, with two columns, `source,destination`.
-- The serial baseline does not need a spatial acceleration structure yet.
-- If the `xyz` loader cannot parse some metadata, we can still inject the box and periodicity separately after loading.
-
-## Frame API
-
-For the baseline, `Frame` should expose only the information the neighbor search actually needs.
-
-Suggested responsibilities:
-
-- store coordinates
-- store species IDs
-- store box vectors or orthogonal box lengths
-- store periodicity flags
-- provide a squared-distance helper that already applies periodic boundary handling
-
-Suggested interface:
-
-```cpp
-class Frame {
-public:
-    using coord_t = std::array<double, 3>;
-
-    Frame() = default;
-    size_t size() const noexcept;
-
-    void load_from_extxyz(const std::string &path);
-
-    double distance2(size_t i, size_t j) const;
-
-    const std::vector<coord_t> &coords_ref() const noexcept;
-    const std::vector<int> &species_ref() const noexcept;
-    const std::array<std::array<double, 3>, 3> &box_ref() const noexcept;
-    const std::array<bool, 3> &periodicity() const noexcept;
-
-    void set_box(const std::array<std::array<double, 3>, 3> &box);
-    void set_periodic(const std::array<bool, 3> &p);
-};
-```
-
-The main reason to expose only `distance2(i, j)` is to keep the public API small. The cutoff test only needs a squared distance, and that is enough for the baseline algorithm.
-
-## Output Format
-
-The canonical serial output should be a two-column CSV file.
-
-Conventions:
-
-- use `0`-based atom indexing
-- store each pair once
-- prefer `i < j` ordering for symmetry
-- write one edge per line as `source,destination`
-
-This layout is simple to validate and easy to reuse later.
-
-## Profiling Plan
-
-At this stage, profiling should be designed as part of the implementation, not added later as an afterthought.
-
-### What To Measure
-
-- frame loading time
-- neighbor-list build time
-- output write time
-- total wall-clock time for the full program
-
-### How To Measure
-
-- Use `std::chrono` timers inside the program for phase-level timings.
-- Keep a small, always-on timing summary in the program output so every run is comparable.
-- Use `/usr/bin/time -v` for a quick external check on wall time and memory when needed.
-- Use a developed profiler as the main deep-dive tool:
-  - `VTune` for serial and OpenMP CPU analysis
-  - `Nsight Systems` or `Nsight Compute` later for CUDA analysis
-- Treat profiler runs as selected experiments, not as the primary timing mechanism for every run.
-
-### What To Profile First
-
-- The brute-force pair loop will be the dominant cost.
-- If timing is noisy, increase the problem size rather than profiling tiny inputs.
-- Use the tiny validation frame only for correctness, not for performance conclusions.
-
-### Evaluation Plan
-
-- validation case: a tiny hand-built system with known expected edges
-- benchmark case: a larger fixed-seed system used for timing and profiler runs
-- same cutoff and box settings across repeated runs when comparing timing
-- keep benchmark inputs stable so scaling plots, roofline analysis, and profiler screenshots all refer to the same representative workload
-
-The best balance is:
-
-- use built-in timers for nearly all benchmarking
-- use VTune or Nsight on a smaller number of representative benchmark runs
-- keep profiler output separate from correctness fixtures so the repo stays organized
-
-## Validation vs Benchmarking
-
-These are two different kinds of inputs, and they should be named differently.
-
-- `validation` means small deterministic cases for correctness and debugging
-- `benchmark` means larger fixed cases used for performance analysis and profiler runs
-
-I would reserve the word `test` for validation-oriented cases, and use `benchmark` for profiling-oriented cases.
-
-## Validation Strategy
-
-We should keep at least one validation fixture:
-
-1. A tiny deterministic frame with known ground-truth edges.
-
-The validation frame should be small enough to inspect manually but not so small that it misses corner cases. A good target is roughly 6 to 12 atoms with a few obvious neighbor pairs and a few obvious non-neighbors.
-
-Store this in `validation/` so it is shared by every implementation.
-
-## Benchmark Strategy
-
-We should keep at least one benchmark fixture:
-
-1. A larger synthetic frame for timing experiments and profiling.
-
-The benchmark case can be random, but it should be generated from a fixed seed so results are reproducible. This is the workload we will use for scaling curves and profiler sessions.
-
-Store benchmark generators and generated benchmark frames in `benchmark/` so they can be reused across serial and parallel versions.
+- deterministic output order comes naturally from increasing `i`, then `j`
+- no spatial acceleration structure in the baseline
 
 ## OpenMP Plan
 
-The OpenMP version should preserve the exact same neighbor-list semantics as the serial version:
+The OpenMP version should keep the same global brute-force task as the serial
+version.
 
-- same cutoff rule
-- same minimum-image rule
-- same half-list convention `i < j`
-- same final two-column edge output
+Algorithm:
 
-The main goal is to parallelize the expensive pair-search phase while keeping correctness and a fair comparison against the serial baseline.
+1. Load the frame serially.
+2. Parallelize the outer loop over source atoms `i`.
+3. Give each source atom its own local destination container.
+4. Concatenate per-source containers in increasing `i` order.
 
-### What To Parallelize First
-
-The first OpenMP implementation should parallelize the **edge-construction phase**, not the file loading phase.
-
-Reasoning:
-
-- the brute-force pair loop is the dominant `O(N^2)` cost
-- file loading is `O(N)` and is unlikely to dominate runtime on benchmark-sized inputs
-- parallel text parsing is possible, but it adds complexity early and is not the main HPC bottleneck
-- keeping input loading serial in the first OpenMP version makes correctness and debugging much easier
-
-So the recommended first OpenMP scope is:
-
-1. load the extxyz frame serially
-2. build the edge list in parallel
-3. write the output serially
-
-If profiling later shows that loading is a meaningful bottleneck, we can revisit parallel parsing as a secondary optimization.
-
-### OpenMP Edge-Build Strategy
-
-The outer loop over source atoms `i` is the natural loop to parallelize.
-
-At a high level:
-
-1. Load the frame.
-2. Create a small per-source or per-thread edge container.
-3. Parallelize the loop over `i`.
-4. For each `i`, loop over `j > i`.
-5. Compute the minimum-image squared distance.
-6. If the pair is within cutoff, store `(i, j)` in the local container.
-7. After the parallel region, stitch the local containers together into the final edge list.
-
-### OpenMP Pseudocode
+Pseudocode:
 
 ```text
 load Frame
 cutoff2 = cutoff * cutoff
-create local edge containers
+create per-source destination containers
 
-parallel for i in 0 .. N-1 schedule(dynamic)
-    local container for this i or this thread
+parallel for i in 0 .. N-1 schedule(dynamic):
     for j in i+1 .. N-1:
-        compute minimum-image squared distance
-        if dist2 <= cutoff2:
-            store (i, j) locally
+        if distance2(i, j) <= cutoff2:
+            append j to source i's local container
 
-merge local containers into final EdgeList
-write final EdgeList
+concatenate source containers in increasing i order
 ```
 
-### Ordering Question
+Why this design:
 
-Yes, we should keep the final edge list in a deterministic order if we can do so without much extra complexity.
+- no `critical` section in the hot loop
+- deterministic final edge order
+- close algorithmic match to the serial baseline
 
-The cleanest approach is exactly the one you suggested:
+## MPI Plan
 
-- give each source atom `i` its own mini-container of destination indices
-- let the thread responsible for `i` fill only that container
-- after the parallel loop, concatenate the mini-containers in ascending `i` order
+MPI is necessarily more algorithmically structured because distributed memory
+requires spatial decomposition and halo exchange. So MPI is not a perfectly
+identical low-level algorithm to serial/OpenMP, but it solves the same task and
+preserves the same edge semantics.
 
-This has several advantages:
+### Domain Decomposition
 
-- no `critical` section is needed in the hot loop
-- no atom pair is written by more than one thread
-- the final edge order stays consistent with the serial half-list order
-- validation against the serial output stays simple
+Use a 3D Cartesian process grid:
 
-This is probably the best first OpenMP design.
+- choose dimensions with `MPI_Dims_create`
+- create a Cartesian communicator with `MPI_Cart_create`
 
-### Why Not Just Shared `push_back`?
+Each atom has:
 
-A shared global edge list with `push_back` inside an OpenMP `critical` section is correct but not a good final design.
+- one global atom ID
+- exactly one owner rank based on spatial location
 
-Why:
+### Owned and Halo Atoms
 
-- every accepted edge contends on the same lock
-- the hottest part of the computation becomes serialized
-- scalability will be poor
-- the resulting edge order may depend on thread timing
+Each rank stores:
 
-So `critical` is acceptable as a temporary prototype, but not as the implementation we want to benchmark seriously.
+- `owned_atoms`
+- `halo_atoms`
 
-### Per-Atom Containers vs Per-Thread Containers
+Each rank emits edges only for owned atoms. Halo atoms are destination-only
+context.
 
-There are two reasonable designs:
+### Ownership Distribution
 
-1. Per-atom containers
-2. Per-thread containers
+1. Rank 0 loads the frame.
+2. Rank 0 broadcasts box and periodic metadata.
+3. Rank 0 computes the owner rank for each atom.
+4. Rank 0 sends each rank its owned atoms.
 
-For this project, I recommend **per-atom containers first**.
+### Halo Exchange
 
-Why:
+Use a 3-phase directional sweep:
 
-- preserves deterministic output order naturally
-- easy to reason about
-- easy to validate
-- avoids merge ambiguity
+1. exchange along `x`
+2. exchange along `y`
+3. exchange along `z`
 
-The tradeoff is that you create many small containers, one for each source atom. That is usually acceptable for a first OpenMP implementation.
+In each phase:
 
-Per-thread containers may be slightly lighter-weight in some settings, but they make deterministic merging less direct.
+- build low-face and high-face boundary buffers
+- exchange counts
+- exchange atom payloads
+- append received atoms to `halo_atoms`
 
-### Scheduling Choice
+Special cases:
 
-Dynamic scheduling is a good first choice for the outer loop.
+- if `dims[axis] == 1`, skip exchange in that axis
+- if low and high neighbors are the same rank (`dims[axis] == 2` periodic
+  case), send one union buffer
 
-Why:
+Important geometric assumption:
 
-- early values of `i` have longer inner loops than late values
-- the amount of work per iteration shrinks with increasing `i`
-- dynamic scheduling helps balance that uneven work
+- this first MPI design assumes `cutoff <= local subdomain width` in each
+  decomposed axis
 
-This is worth testing later against `static`, but `dynamic` is a sensible default to start from.
+Otherwise one-hop nearest-neighbor halo exchange is not sufficient.
 
-### OpenMP Loading Discussion
+### Local Edge Construction
 
-Your loading idea is reasonable in principle, but I would not do it first.
+Each rank then builds its local edge list:
 
-What parallel loading would require:
+- source atoms: owned atoms only
+- destination atoms: owned atoms with `j > i`, plus all halo atoms
+- global half-list rule: emit only if `global_i < global_j`
 
-- read the file into memory
-- identify line boundaries
-- preallocate coordinate/species arrays
-- assign different atom-line ranges to different threads
-- parse text into already-assigned slots instead of using `push_back`
+Pseudocode:
 
-That can work, but it changes the loader quite a bit and introduces complexity in:
+```text
+rank 0 loads Frame
+broadcast box + periodicity
+create Cartesian communicator
+distribute owned atoms
+exchange halos
 
-- parsing the extxyz header
-- splitting work by line rather than by bytes
-- keeping parsing robust
+for each owned atom i:
+    for each owned atom j with j > i:
+        if dist2(i, j) <= cutoff2:
+            append (global_i, global_j)
+    for each halo atom j:
+        if global_i < global_j and dist2(i, j) <= cutoff2:
+            append (global_i, global_j)
+```
 
-For a project like this, I think the right strategy is:
+### MPI Output Behavior
 
-- keep extxyz loading serial in the first OpenMP version
-- optimize and parallelize the neighbor-search loop first
-- only revisit loading if VTune later shows that parsing is nontrivial
+Two modes:
 
-### Recommendation
+- validation mode:
+  - gather all local edge lists to rank 0
+  - globally sort by `(source, destination)`
+  - write CSV
+- benchmark mode:
+  - do not gather full edge lists
+  - reduce only summary data such as edge count and timings
 
-So my recommendation is:
+## CUDA Plan
 
-1. Do **not** parallelize frame loading in the first OpenMP version.
-2. Parallelize the outer `i` loop of neighbor-list construction.
-3. Use **dynamic scheduling** initially.
-4. Store results in **per-source mini-containers**.
-5. Concatenate those mini-containers in `i` order to form the final edge list.
+For fairness with the serial and OpenMP baselines, the first CUDA version
+should also solve the **global brute-force task**, not a cell-list variant.
 
-That gives a clean, scalable, and validation-friendly OpenMP design without introducing locks into the hot path.
+That gives the cleanest comparison between:
+
+- serial
+- OpenMP
+- CUDA
+
+MPI still differs structurally because distributed memory forces domain
+decomposition.
+
+### Host / Device Split
+
+Host responsibilities:
+
+- load `extxyz`
+- pack coordinates from host AoS into host SoA
+- allocate device buffers
+- copy coordinates and metadata to the GPU
+- launch kernels
+- copy back results if needed
+- optionally write CSV
+
+Device responsibilities:
+
+- evaluate candidate pairs
+- apply minimum-image distance
+- decide which pairs belong in the neighbor list
+- fill device-side output arrays
+
+### Memory Flow
+
+1. CPU loads `Frame`
+2. CPU repacks to:
+   - `x[]`
+   - `y[]`
+   - `z[]`
+3. CPU allocates device memory
+4. CPU copies SoA buffers and box metadata to device
+5. GPU builds the neighbor list
+6. CPU copies edges back only when needed
+
+We do **not** plan to parse `extxyz` directly on the GPU in the first version.
+
+### CUDA Kernel Baseline
+
+The simplest fair CUDA baseline is:
+
+- one thread owns one source atom `i`
+- that thread scans all `j > i`
+- apply minimum-image distance
+- count or store valid neighbors
+
+This is still brute-force globally:
+
+- overall candidate work is `O(N^2)`
+
+The advantage is that it matches the serial/OpenMP task more closely than a
+cell-list CUDA version would.
+
+### CUDA Output Construction
+
+Two reasonable designs:
+
+#### Option 1: Atomic append
+
+Each source-thread:
+
+- scans `j > i`
+- atomically reserves output slots for valid pairs
+
+Pros:
+
+- simpler first CUDA version
+
+Cons:
+
+- global atomic contention
+- nondeterministic output order
+
+#### Option 2: Two-pass count/fill
+
+Pass 1:
+
+- one thread per source atom
+- count valid neighbors of source atom `i`
+
+Then:
+
+- device prefix sum over per-source counts
+
+Pass 2:
+
+- one thread per source atom again
+- rescan `j > i`
+- write neighbors into that source atom's assigned output range
+
+Pros:
+
+- cleaner per-source layout
+- closer in spirit to the OpenMP and MPI sublists
+- less global contention
+
+Cons:
+
+- more moving parts
+- requires scan/prefix-sum support
+
+For this project, the two-pass design is preferable if time allows.
+
+### CUDA Pseudocode
+
+```text
+host loads Frame
+host repacks coordinates to SoA
+host allocates device buffers
+host copies coordinates + box metadata to device
+
+kernel count_neighbors:
+    one thread per source atom i
+    for j in i+1 .. N-1:
+        if dist2(i, j) <= cutoff2:
+            neighbor_count[i] += 1
+
+device prefix sum on neighbor_count -> edge_offsets
+
+kernel fill_neighbors:
+    one thread per source atom i
+    write_ptr = edge_offsets[i]
+    for j in i+1 .. N-1:
+        if dist2(i, j) <= cutoff2:
+            sources[write_ptr] = i
+            destinations[write_ptr] = j
+            write_ptr += 1
+```
+
+## Possible Later Optimizations
+
+We are intentionally keeping the current baseline task global and brute-force
+for fairness.
+
+Possible later extensions:
+
+- cell lists for OpenMP
+- cell lists for CUDA
+- more advanced CUDA output strategies
+- possibly more optimized MPI packing
+
+If we add cell lists later, they should be described explicitly as an
+**algorithmic optimization layer**, not folded invisibly into one backend's
+baseline.
