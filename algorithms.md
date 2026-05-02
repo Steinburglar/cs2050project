@@ -87,6 +87,48 @@ Use:
 
 The validation case is for correctness, not performance.
 
+## Julia Extension
+
+Julia be the extra method for project.
+
+Why Julia:
+
+- easier to write than C++/CUDA
+- good for scientific array code
+- still serious HPC language
+- good comparison point for speed vs development ease
+
+What Julia should do:
+
+1. load same `extxyz`
+2. build same half neighbor list
+3. use same cutoff and minimum-image rule
+4. write same CSV output
+
+Keep it fair:
+
+- same input
+- same output
+- same validation file
+- same cutoff as other baseline runs
+
+Likely Julia shape:
+
+- use `DelimitedFiles` or a small parser for input
+- store coordinates in arrays
+- run brute-force neighbor loop first
+- add `Threads.@threads` later if wanted
+
+For the report, compare Julia against C++ on:
+
+- ease of development
+- code size / clarity
+- runtime on benchmark case
+- abstraction level
+
+Julia be a good extra method because it show different language style
+without forcing a big new framework.
+
 ## Serial Plan
 
 The serial implementation is the correctness baseline.

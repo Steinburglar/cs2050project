@@ -2267,3 +2267,102 @@ events:
         
       exitCode: 0
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1322 (_MPI_try_staged_settings)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1645 (_MPI_check_lang_works)"
+      - "CMakeLists.txt:11 (find_package)"
+    description: "The MPI test test_mpi for C in mode normal"
+    directories:
+      source: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-prxX2F"
+      binary: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-prxX2F"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "MPI_RESULT_C_test_mpi_normal"
+      cached: true
+      stdout: |
+        Change Dir: '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-prxX2F'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_6220e/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_6220e.dir/build.make CMakeFiles/cmTC_6220e.dir/build
+        gmake[1]: Entering directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-prxX2F'
+        Building C object CMakeFiles/cmTC_6220e.dir/test_mpi.c.o
+        /usr/bin/cc  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi  -o CMakeFiles/cmTC_6220e.dir/test_mpi.c.o -c /home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-prxX2F/test_mpi.c
+        Linking C executable cmTC_6220e
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6220e.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_6220e.dir/test_mpi.c.o -o cmTC_6220e  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-prxX2F'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1322 (_MPI_try_staged_settings)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1645 (_MPI_check_lang_works)"
+      - "CMakeLists.txt:11 (find_package)"
+    description: "The MPI test test_mpi for CXX in mode normal"
+    directories:
+      source: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-EdH3LQ"
+      binary: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-EdH3LQ"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "MPI_RESULT_CXX_test_mpi_normal"
+      cached: true
+      stdout: |
+        Change Dir: '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-EdH3LQ'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_65988/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_65988.dir/build.make CMakeFiles/cmTC_65988.dir/build
+        gmake[1]: Entering directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-EdH3LQ'
+        Building CXX object CMakeFiles/cmTC_65988.dir/test_mpi.cpp.o
+        /usr/bin/c++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -std=gnu++17 -o CMakeFiles/cmTC_65988.dir/test_mpi.cpp.o -c /home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-EdH3LQ/test_mpi.cpp
+        Linking CXX executable cmTC_65988
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_65988.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_65988.dir/test_mpi.cpp.o -o cmTC_65988  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-EdH3LQ'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1672 (_MPI_try_staged_settings)"
+      - "CMakeLists.txt:11 (find_package)"
+    description: "The MPI test test_mpi for CXX in mode MPICXX"
+    directories:
+      source: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-NedeYG"
+      binary: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-NedeYG"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "MPI_RESULT_CXX_test_mpi_MPICXX"
+      cached: true
+      stdout: |
+        Change Dir: '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-NedeYG'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_da108/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_da108.dir/build.make CMakeFiles/cmTC_da108.dir/build
+        gmake[1]: Entering directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-NedeYG'
+        Building CXX object CMakeFiles/cmTC_da108.dir/test_mpi.cpp.o
+        /usr/bin/c++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -std=gnu++17 -o CMakeFiles/cmTC_da108.dir/test_mpi.cpp.o -c /home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-NedeYG/test_mpi.cpp
+        Linking CXX executable cmTC_da108
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_da108.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_da108.dir/test_mpi.cpp.o -o cmTC_da108  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-NedeYG'
+        
+      exitCode: 0
+...
