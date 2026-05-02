@@ -2,9 +2,9 @@
 #SBATCH --job-name=cs2050_benchmark
 #SBATCH --output=benchmark.out
 #SBATCH --error=benchmark.err
-#SBATCH --time=00:20:00
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=2G
+#SBATCH --mem=8gb
 
 set -euo pipefail
 
@@ -25,13 +25,29 @@ mkdir -p "$RESULT_DIR"
 cmake -S "$ROOT_DIR/serial" -B "$BUILD_DIR"
 cmake --build "$BUILD_DIR" -j
 
-printf "N,total_ms\n" > "$OUT_CSV"
+run_exec() {
+    if command -v srun >/dev/null 2>&1 && [[ -n "${SLURM_JOB_ID:-}" ]]; then
+        srun --exclusive "$@"
+    else
+        "$@"
+    fi
+}
+
+printf "N,load_ms,build_ms,write_ms,total_ms\n" > "$OUT_CSV"
 
 for input in "${SERIES[@]}"; do
+    if [[ ! -f "$input" ]]; then
+        echo "Missing benchmark frame: $input" >&2
+        exit 1
+    fi
     n=$(basename "$input" .xyz | sed 's/bench_//')
     echo "Running N=$n"
-    line=$("$BUILD_DIR/serial_exec" "$input" - 10.0 --timing --no-write | awk -F'total=' '/Timing summary/ {print $2}')
-    printf "%s,%s\n" "$n" "$line" >> "$OUT_CSV"
+    timing_line=$(run_exec "$BUILD_DIR/serial_exec" "$input" - 10.0 --timing --no-write | awk '/Timing summary/ {print}')
+    load_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*load=\([^ ]*\).*/\1/p')
+    build_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*build=\([^ ]*\).*/\1/p')
+    write_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*write=\([^ ]*\).*/\1/p')
+    total_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*total=\([^ ]*\).*/\1/p')
+    printf "%s,%s,%s,%s,%s\n" "$n" "$load_ms" "$build_ms" "$write_ms" "$total_ms" >> "$OUT_CSV"
 done
 
 echo "Wrote $OUT_CSV"

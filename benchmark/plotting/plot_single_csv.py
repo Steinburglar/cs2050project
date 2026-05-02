@@ -43,12 +43,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("csv", type=Path, help="input CSV with two columns")
     parser.add_argument("--title", required=True, help="plot title")
+    parser.add_argument("--metric", default="time", choices=["time", "speedup", "efficiency"], help="y metric")
     parser.add_argument("--x-scale", default="lin", choices=["lin", "log"], help="x-axis scale")
     parser.add_argument("--y-scale", default="lin", choices=["lin", "log"], help="y-axis scale")
     parser.add_argument("--xlabel", default="N", help="x-axis label")
-    parser.add_argument("--ylabel", default="Time (ms)", help="y-axis label")
+    parser.add_argument("--ylabel", default=None, help="y-axis label override")
     parser.add_argument("--x-col", default="N", help="CSV column name for x data")
-    parser.add_argument("--y-col", default="total_ms", help="CSV column name for y data")
+    parser.add_argument("--y-col", default="total_ms", help="CSV column name for time data")
     parser.add_argument("--fit-slope", action="store_true", help="fit slope in selected scale space")
     parser.add_argument(
         "--ref-exp",
@@ -73,15 +74,46 @@ def scale_value(value: float, scale: str) -> float:
     return value
 
 
-def inverse_scale_value(value: float, scale: str) -> float:
-    if scale == "log":
-        return 10 ** value
-    return value
+def compute_metric(xs, ys, metric: str):
+    if metric == "time":
+        return ys
+
+    if not xs:
+        return ys
+
+    baseline = None
+    for x, y in zip(xs, ys):
+        if x == 1:
+            baseline = y
+            break
+    if baseline is None:
+        baseline = ys[0]
+
+    if metric == "speedup":
+        return [baseline / y for y in ys]
+
+    if metric == "efficiency":
+        return [baseline / y for y in ys]
+
+    raise ValueError(f"unknown metric: {metric}")
+
+
+def default_ylabel(metric: str, y_col: str) -> str:
+    if metric == "speedup":
+        return "Speedup"
+    if metric == "efficiency":
+        return "Efficiency"
+    base = y_col
+    if base.endswith("_ms"):
+        base = base[:-3].replace("_", " ").strip().title()
+        return f"{base} Time (ms)"
+    return y_col
 
 
 def main() -> int:
     args = parse_args()
-    xs, ys = read_csv(args.csv, args.x_col, args.y_col)
+    xs, times = read_csv(args.csv, args.x_col, args.y_col)
+    ys = compute_metric(xs, times, args.metric)
     out_dir = args.csv.parent / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / args.out
@@ -103,7 +135,11 @@ def main() -> int:
     ax.plot(xs, ys, marker="o", linewidth=2)
     ax.set_title(args.title)
     ax.set_xlabel(args.xlabel)
-    ax.set_ylabel(args.ylabel)
+    ylabel = default_ylabel(args.metric, args.y_col)
+    if args.ylabel is not None:
+        print(f"Warning: overriding auto y-label {ylabel!r} with {args.ylabel!r}")
+        ylabel = args.ylabel
+    ax.set_ylabel(ylabel)
     ax.set_xscale("log" if args.x_scale == "log" else "linear")
     ax.set_yscale("log" if args.y_scale == "log" else "linear")
     ax.grid(True, which="both", linestyle="--", alpha=0.4)
@@ -113,10 +149,7 @@ def main() -> int:
     if args.ref_exp is not None:
         x_min = min(xs)
         x_max = max(xs)
-        if x_min == x_max:
-            ref_xs = [x_min, x_max]
-        else:
-            ref_xs = [x_min, x_max]
+        ref_xs = [x_min, x_max]
         base_x = ref_xs[0]
         base_y = ys[0]
         ref_ys = [

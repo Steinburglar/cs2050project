@@ -2366,3 +2366,102 @@ events:
         
       exitCode: 0
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1322 (_MPI_try_staged_settings)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1645 (_MPI_check_lang_works)"
+      - "CMakeLists.txt:11 (find_package)"
+    description: "The MPI test test_mpi for C in mode normal"
+    directories:
+      source: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-KTMkCM"
+      binary: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-KTMkCM"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "MPI_RESULT_C_test_mpi_normal"
+      cached: true
+      stdout: |
+        Change Dir: '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-KTMkCM'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_9368b/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_9368b.dir/build.make CMakeFiles/cmTC_9368b.dir/build
+        gmake[1]: Entering directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-KTMkCM'
+        Building C object CMakeFiles/cmTC_9368b.dir/test_mpi.c.o
+        /usr/bin/cc  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi  -o CMakeFiles/cmTC_9368b.dir/test_mpi.c.o -c /home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-KTMkCM/test_mpi.c
+        Linking C executable cmTC_9368b
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9368b.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_9368b.dir/test_mpi.c.o -o cmTC_9368b  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-KTMkCM'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1322 (_MPI_try_staged_settings)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1645 (_MPI_check_lang_works)"
+      - "CMakeLists.txt:11 (find_package)"
+    description: "The MPI test test_mpi for CXX in mode normal"
+    directories:
+      source: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-pBAXUH"
+      binary: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-pBAXUH"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "MPI_RESULT_CXX_test_mpi_normal"
+      cached: true
+      stdout: |
+        Change Dir: '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-pBAXUH'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_87d5c/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_87d5c.dir/build.make CMakeFiles/cmTC_87d5c.dir/build
+        gmake[1]: Entering directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-pBAXUH'
+        Building CXX object CMakeFiles/cmTC_87d5c.dir/test_mpi.cpp.o
+        /usr/bin/c++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -std=gnu++17 -o CMakeFiles/cmTC_87d5c.dir/test_mpi.cpp.o -c /home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-pBAXUH/test_mpi.cpp
+        Linking CXX executable cmTC_87d5c
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_87d5c.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_87d5c.dir/test_mpi.cpp.o -o cmTC_87d5c  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-pBAXUH'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindMPI.cmake:1672 (_MPI_try_staged_settings)"
+      - "CMakeLists.txt:11 (find_package)"
+    description: "The MPI test test_mpi for CXX in mode MPICXX"
+    directories:
+      source: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-oIaolp"
+      binary: "/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-oIaolp"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "MPI_RESULT_CXX_test_mpi_MPICXX"
+      cached: true
+      stdout: |
+        Change Dir: '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-oIaolp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_4f465/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_4f465.dir/build.make CMakeFiles/cmTC_4f465.dir/build
+        gmake[1]: Entering directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-oIaolp'
+        Building CXX object CMakeFiles/cmTC_4f465.dir/test_mpi.cpp.o
+        /usr/bin/c++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -std=gnu++17 -o CMakeFiles/cmTC_4f465.dir/test_mpi.cpp.o -c /home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-oIaolp/test_mpi.cpp
+        Linking CXX executable cmTC_4f465
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_4f465.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_4f465.dir/test_mpi.cpp.o -o cmTC_4f465  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/stein/classes/CS2050/cs2050project/mpi/build/CMakeFiles/CMakeScratch/TryCompile-oIaolp'
+        
+      exitCode: 0
+...
