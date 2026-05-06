@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <chrono>
 #include <vector>
 
 #include <mpi.h>
@@ -506,6 +507,8 @@ static EdgeList gather_edges_to_root(const EdgeList &local_edges, int world_rank
 /** MPI entry point. We will build the MPI-specific orchestration here next. */
 int main(int argc, char **argv)
 {
+    const auto total_start = std::chrono::steady_clock::now();
+
     if (argc < 4 || argc > 7)
     {
         std::cerr << "Usage: " << argv[0]
@@ -541,9 +544,6 @@ int main(int argc, char **argv)
         }
     }
 
-    (void)cutoff;
-    (void)print_timing;
-
     // Start the MPI runtime. Every MPI process must call MPI_Init before using
     // other MPI routines.
     MPI_Init(&argc, &argv);
@@ -554,6 +554,7 @@ int main(int argc, char **argv)
     // Query this process's rank in MPI_COMM_WORLD, the default communicator
     // containing every launched MPI process.
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    const bool is_root = (world_rank == 0);
 
     // Query how many total processes are participating in MPI_COMM_WORLD.
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
@@ -730,8 +731,27 @@ int main(int argc, char **argv)
     MPI_Type_free(&mpi_atom_type);
     MPI_Comm_free(&cart_comm);
 
+    double local_timings[3] = {
+        timing.load_ms,
+        timing.build_ms,
+        timing.write_ms,
+    };
+    double global_timings[3] = {0.0, 0.0, 0.0};
+    MPI_Reduce(local_timings, global_timings, 3, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
     // Shut down the MPI runtime. This should be the last MPI call in main.
     MPI_Finalize();
+
+    if (print_timing && is_root)
+    {
+        TimingSummary global_timing;
+        global_timing.load_ms = global_timings[0];
+        global_timing.build_ms = global_timings[1];
+        global_timing.write_ms = global_timings[2];
+        global_timing.total_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - total_start).count();
+        global_timing.print(std::cout);
+    }
 
     return 0;
 }

@@ -39,11 +39,19 @@ for r in "${RANKS_LIST[@]}"; do
         continue
     fi
     echo "Running ranks=$r"
-    timing_line=$(mpirun -n "$r" "$BUILD_DIR/mpi_exec" "$INPUT" - 10.0 --timing --no-write | awk '/Timing summary/ {print}')
+    start_ns=$(date +%s%N)
+    run_output=$(mpirun -n "$r" "$BUILD_DIR/mpi_exec" "$INPUT" - 10.0 --timing --no-write 2>&1)
+    end_ns=$(date +%s%N)
+    timing_line=$(printf '%s\n' "$run_output" | awk '/Timing summary/ {print}')
+    if [[ -z "$timing_line" ]]; then
+        printf '%s\n' "$run_output" >&2
+        echo "Missing timing summary for ranks=$r" >&2
+        exit 1
+    fi
     load_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*load=\([^ ]*\).*/\1/p')
     build_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*build=\([^ ]*\).*/\1/p')
     write_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*write=\([^ ]*\).*/\1/p')
-    total_ms=$(printf '%s\n' "$timing_line" | sed -n 's/.*total=\([^ ]*\).*/\1/p')
+    total_ms=$(awk -v start="$start_ns" -v end="$end_ns" 'BEGIN { printf "%.3f", (end - start) / 1000000.0 }')
     n=$(sed -n '1p' "$INPUT")
     printf "%s,%s,%s,%s,%s,%s\n" "$r" "$n" "$load_ms" "$build_ms" "$write_ms" "$total_ms" >> "$OUT_CSV"
 done
